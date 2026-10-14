@@ -3,150 +3,136 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>File Tracker NFC</title>
+  <title>Imbas File Tracker</title>
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    * {
-      box-sizing: border-box;
-    }
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-      background-color: #f0f4f8; 
-      text-align: center; 
-      padding: 20px; 
-      margin: 0; 
-    }
-    .card { 
-      background: #ffffff; 
-      padding: 30px 20px; 
-      border-radius: 16px; 
-      box-shadow: 0 10px 25px rgba(0,0,0,0.08); 
-      max-width: 400px; 
-      margin: 20px auto; 
-    }
-    h2 { 
-      color: #1a202c; 
-      margin-top: 0;
-      margin-bottom: 8px; 
-    }
-    p { 
-      color: #718096; 
-      font-size: 14px; 
-      line-height: 1.5;
-    }
-    button { 
-      background-color: #3182ce; 
-      color: white; 
-      border: none; 
-      padding: 16px 24px; 
-      font-size: 16px; 
-      font-weight: bold; 
-      border-radius: 10px; 
-      cursor: pointer; 
-      width: 100%; 
-      margin-top: 15px; 
-      box-shadow: 0 4px 12px rgba(49,130,206,0.3);
-      transition: background-color 0.2s;
-    }
-    button:active { 
-      background-color: #2b6cb0; 
-    }
-    #statusBox { 
-      margin-top: 25px; 
-      padding: 18px; 
-      border-radius: 12px; 
-      background: #edf2f7; 
-      font-size: 15px; 
-      font-weight: 600; 
-      color: #2d3748; 
-      min-height: 80px; 
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      white-space: pre-line;
-      line-height: 1.6;
-    }
-    .keluar { 
-      background-color: #fff5f5 !important; 
-      color: #c53030 !important; 
-      border: 2px solid #feb2b2; 
-    }
-    .masuk { 
-      background-color: #f0fff4 !important; 
-      color: #276749 !important; 
-      border: 2px solid #9ae6b4; 
-    }
-    .error {
-      background-color: #fffaf0 !important;
-      color: #c05621 !important;
-      border: 2px solid #fbd38d;
-    }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background-color: #f0f4f8; text-align: center; padding: 15px; margin: 0; }
+    .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); max-width: 420px; margin: 10px auto; }
+    #reader { width: 100%; border-radius: 10px; overflow: hidden; margin-top: 10px; }
+    #statusBox { margin-top: 15px; padding: 15px; border-radius: 10px; background: #edf2f7; font-size: 15px; font-weight: bold; white-space: pre-line; line-height: 1.5; }
+    .step1 { background-color: #ebf8ff !important; color: #2b6cb0 !important; border: 2px solid #90cdf4; }
+    .keluar { background-color: #fff5f5 !important; color: #c53030 !important; border: 2px solid #feb2b2; }
+    .terima { background-color: #f0fff4 !important; color: #276749 !important; border: 2px solid #9ae6b4; }
+    .error { background-color: #fffaf0 !important; color: #c05621 !important; border: 2px solid #fbd38d; }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <h2>📁 File Tracker NFC</h2>
-    <p>Tekan butang di bawah dan sentuhkan kad Touch 'n Go pada belakang telefon anda.</p>
-    
-    <button onclick="mulaImbas()">Mula Imbas NFC</button>
-    
-    <div id="statusBox">Tekan "Mula Imbas NFC" untuk bermula.</div>
+    <h2>📁 File Tracker Auto</h2>
+    <p>1. Imbas QR Fail<br>2. Imbas Kad TNG Staf</p>
+
+    <div id="reader"></div>
+    <div id="statusBox">Kamera Sedia. Sila halakan pada Kod QR Fail...</div>
   </div>
 
   <script>
-    // === MASUKKAN URL WEB APP GOOGLE APPS SCRIPT ANDA DI SINI ===
+    // MASUKKAN URL GOOGLE APPS SCRIPT ANDA DI SINI
     const GAS_URL = "https://script.google.com/macros/s/AKfycbw6R1VkJ816SlMH05lYEe4T4j5zrS-93j_AQWJyiOj4nMA-UuCZ3AYv7uZdx6R0snRnCQ/exec";
 
-    async function mulaImbas() {
+    let currentFail = null;
+    let html5QrcodeScanner = null;
+
+    function startQrScanner() {
+      html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+      html5QrcodeScanner.render(onScanSuccess);
+    }
+
+    async function onScanSuccess(decodedText) {
+      const box = document.getElementById('statusBox');
+      box.innerText = "Kod QR Dikesan: " + decodedText + "\nMemproses fail...";
+
+      try {
+        const res = await fetch(GAS_URL + "?action=getFail&kodFail=" + encodeURIComponent(decodedText));
+        const data = await res.json();
+
+        if (data.namaFail) {
+          currentFail = { 
+            kod: decodedText, 
+            nama: data.namaFail,
+            jbFail: data.jabatanFail
+          };
+          html5QrcodeScanner.clear(); // Hentikan Kamera QR
+          
+          box.className = "step1";
+          box.innerText = "📌 FAIL DIKESAN:\n" + data.namaFail + " (" + decodedText + ")\n" + data.jabatanFail + "\n\n[LANGKAH 2]: Imbas Kad TNG Staf di belakang telefon...";
+          
+          mulaImbasNFC(); // Aktifkan NFC
+        } else {
+          box.className = "error";
+          box.innerText = "⚠️ Kod Fail " + decodedText + " tidak didaftarkan!";
+        }
+      } catch (err) {
+        box.className = "error";
+        box.innerText = "Ralat: " + err.message;
+      }
+    }
+
+    async function mulaImbasNFC() {
       const box = document.getElementById('statusBox');
 
-      // Semak sokongan Web NFC
       if (!('NDEFReader' in window)) {
         box.className = 'error';
-        box.innerText = "Pelayar ini tidak menyokong Web NFC.\nSila guna Google Chrome pada Android.";
+        box.innerText = "Telefon tidak menyokong Web NFC.";
         return;
       }
 
       try {
         const ndef = new NDEFReader();
         await ndef.scan();
-        box.className = '';
-        box.innerText = "Sedia!\nSentuhkan kad Touch 'n Go pada belakang telefon...";
 
         ndef.addEventListener("reading", async ({ serialNumber }) => {
-          if (!serialNumber) {
-            box.className = 'error';
-            box.innerText = "Kad dikesan tetapi UID tidak dapat dibaca.";
-            return;
-          }
+          if (!serialNumber || !currentFail) return;
 
-          box.className = '';
-          box.innerText = "UID: " + serialNumber + "\nMemproses data ke pangkalan data...";
+          box.innerText = "Kad TNG Dikesan!\nSemak identiti staf...";
 
           try {
-            // Hantar UID ke Google Apps Script
-            const response = await fetch(GAS_URL + "?uid=" + encodeURIComponent(serialNumber));
-            const data = await response.json();
+            const resStaf = await fetch(GAS_URL + "?action=getStaf&uid=" + encodeURIComponent(serialNumber));
+            const dataStaf = await resStaf.json();
 
-            if (data.error) {
+            if (!dataStaf.namaStaf) {
               box.className = 'error';
-              box.innerText = "Ralat: " + data.error;
+              box.innerText = "⚠️ Kad TNG (UID: " + serialNumber + ") belum didaftarkan!";
               return;
             }
 
-            // Paparkan hasil mengikut status pergerakan fail
-            if (data.status === "KELUAR") {
-              box.className = "keluar";
-              box.innerText = "🔴 FAIL KELUAR\n\nFail: " + data.namaFail + "\nMasa: " + data.masa;
-            } else {
-              box.className = "masuk";
-              box.innerText = "🟢 FAIL MASUK\n\nFail: " + data.namaFail + "\nMasa: " + data.masa;
+            box.innerText = "Staf: " + dataStaf.namaStaf + "\n" + dataStaf.jabatanStaf + "\nMerekodkan transaksi...";
+
+            // Hantar data ke backend
+            const saveRes = await fetch(GAS_URL, {
+              method: "POST",
+              body: JSON.stringify({
+                kodFail: currentFail.kod,
+                namaFail: currentFail.nama,
+                jabatanFail: currentFail.jbFail,
+                namaStaf: dataStaf.namaStaf,
+                jabatanStaf: dataStaf.jabatanStaf
+              })
+            });
+
+            const saveData = await saveRes.json();
+
+            if (saveData.result === "SUCCESS") {
+              const isKeluar = (saveData.status === "KELUAR");
+              box.className = isKeluar ? "keluar" : "terima";
+              box.innerText = (isKeluar ? "🔴 FAIL KELUAR (PINJAM)" : "🟢 FAIL TERIMA (PULANG)") +
+                              "\n\nFail: " + currentFail.nama +
+                              "\nStaf: " + dataStaf.namaStaf + " (" + dataStaf.jabatanStaf + ")" +
+                              "\nMasa: " + saveData.masa;
+
+              // Reset kamera automatik selepas 4 saat
+              setTimeout(() => {
+                currentFail = null;
+                box.className = "";
+                box.innerText = "Kamera Sedia. Sila halakan pada Kod QR Fail...";
+                startQrScanner();
+              }, 4000);
             }
 
           } catch (err) {
             box.className = 'error';
-            box.innerText = "Ralat Sambungan: " + err.message;
+            box.innerText = "Ralat: " + err.message;
           }
         });
 
@@ -155,6 +141,8 @@
         box.innerText = "Ralat NFC: " + err.message;
       }
     }
+
+    window.onload = startQrScanner;
   </script>
 </body>
 </html>
