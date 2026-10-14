@@ -3,44 +3,111 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imbas File Tracker</title>
+  <title>Imbas File Tracker Auto</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background-color: #f0f4f8; text-align: center; padding: 15px; margin: 0; }
-    .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.08); max-width: 420px; margin: 10px auto; }
-    #reader { width: 100%; border-radius: 10px; overflow: hidden; margin-top: 10px; }
-    #statusBox { margin-top: 15px; padding: 15px; border-radius: 10px; background: #edf2f7; font-size: 15px; font-weight: bold; white-space: pre-line; line-height: 1.5; }
-    .step1 { background-color: #ebf8ff !important; color: #2b6cb0 !important; border: 2px solid #90cdf4; }
-    .keluar { background-color: #fff5f5 !important; color: #c53030 !important; border: 2px solid #feb2b2; }
-    .terima { background-color: #f0fff4 !important; color: #276749 !important; border: 2px solid #9ae6b4; }
-    .error { background-color: #fffaf0 !important; color: #c05621 !important; border: 2px solid #fbd38d; }
+    * { 
+      box-sizing: border-box; 
+    }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
+      background-color: #f0f4f8; 
+      text-align: center; 
+      padding: 15px; 
+      margin: 0; 
+    }
+    .card { 
+      background: #ffffff; 
+      padding: 20px; 
+      border-radius: 16px; 
+      box-shadow: 0 10px 25px rgba(0,0,0,0.08); 
+      max-width: 420px; 
+      margin: 10px auto; 
+    }
+    h2 { 
+      color: #1a202c; 
+      margin-top: 0; 
+      margin-bottom: 5px;
+    }
+    p { 
+      color: #718096; 
+      font-size: 14px; 
+      margin-bottom: 15px;
+    }
+    #reader { 
+      width: 100%; 
+      border-radius: 12px; 
+      overflow: hidden; 
+      margin-top: 10px; 
+    }
+    #statusBox { 
+      margin-top: 15px; 
+      padding: 18px; 
+      border-radius: 12px; 
+      background: #edf2f7; 
+      font-size: 15px; 
+      font-weight: bold; 
+      white-space: pre-line; 
+      line-height: 1.5; 
+      min-height: 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .step1 { 
+      background-color: #ebf8ff !important; 
+      color: #2b6cb0 !important; 
+      border: 2px solid #90cdf4; 
+    }
+    .keluar { 
+      background-color: #fff5f5 !important; 
+      color: #c53030 !important; 
+      border: 2px solid #feb2b2; 
+    }
+    .terima { 
+      background-color: #f0fff4 !important; 
+      color: #276749 !important; 
+      border: 2px solid #9ae6b4; 
+    }
+    .error { 
+      background-color: #fffaf0 !important; 
+      color: #c05621 !important; 
+      border: 2px solid #fbd38d; 
+    }
   </style>
 </head>
 <body>
 
   <div class="card">
     <h2>📁 File Tracker Auto</h2>
-    <p>1. Imbas QR Fail<br>2. Imbas Kad TNG Staf</p>
+    <p>1. Imbas Kod QR Fail<br>2. Imbas Kad TNG Staf (NFC)</p>
 
     <div id="reader"></div>
+
     <div id="statusBox">Kamera Sedia. Sila halakan pada Kod QR Fail...</div>
   </div>
 
   <script>
-    // MASUKKAN URL GOOGLE APPS SCRIPT ANDA DI SINI
+    // PERHATIAN: GANTIKAN URL DI BAWAH DENGAN URL WEB APP GOOGLE APPS SCRIPT ANDA
     const GAS_URL = "https://script.google.com/macros/s/AKfycbw6R1VkJ816SlMH05lYEe4T4j5zrS-93j_AQWJyiOj4nMA-UuCZ3AYv7uZdx6R0snRnCQ/exec";
 
     let currentFail = null;
     let html5QrcodeScanner = null;
+    let isProcessing = false;
 
     function startQrScanner() {
+      isProcessing = false;
       html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
       html5QrcodeScanner.render(onScanSuccess);
     }
 
     async function onScanSuccess(decodedText) {
+      if (isProcessing) return;
+      isProcessing = true;
+
       const box = document.getElementById('statusBox');
+      box.className = "";
       box.innerText = "Kod QR Dikesan: " + decodedText + "\nMemproses fail...";
 
       try {
@@ -53,19 +120,21 @@
             nama: data.namaFail,
             jbFail: data.jabatanFail
           };
-          html5QrcodeScanner.clear(); // Hentikan Kamera QR
+          html5QrcodeScanner.clear();
           
           box.className = "step1";
           box.innerText = "📌 FAIL DIKESAN:\n" + data.namaFail + " (" + decodedText + ")\n" + data.jabatanFail + "\n\n[LANGKAH 2]: Imbas Kad TNG Staf di belakang telefon...";
           
-          mulaImbasNFC(); // Aktifkan NFC
+          mulaImbasNFC();
         } else {
           box.className = "error";
           box.innerText = "⚠️ Kod Fail " + decodedText + " tidak didaftarkan!";
+          isProcessing = false;
         }
       } catch (err) {
         box.className = "error";
         box.innerText = "Ralat: " + err.message;
+        isProcessing = false;
       }
     }
 
@@ -74,7 +143,7 @@
 
       if (!('NDEFReader' in window)) {
         box.className = 'error';
-        box.innerText = "Telefon tidak menyokong Web NFC.";
+        box.innerText = "Pelayar tidak menyokong Web NFC.\nSila guna Google Chrome pada Android.";
         return;
       }
 
@@ -83,7 +152,9 @@
         await ndef.scan();
 
         ndef.addEventListener("reading", async ({ serialNumber }) => {
-          if (!serialNumber || !currentFail) return;
+          if (!serialNumber || !currentFail || isProcessing === false) return;
+
+          isProcessing = false; 
 
           box.innerText = "Kad TNG Dikesan!\nSemak identiti staf...";
 
@@ -94,12 +165,12 @@
             if (!dataStaf.namaStaf) {
               box.className = 'error';
               box.innerText = "⚠️ Kad TNG (UID: " + serialNumber + ") belum didaftarkan!";
+              setTimeout(() => { isProcessing = true; }, 2000);
               return;
             }
 
             box.innerText = "Staf: " + dataStaf.namaStaf + "\n" + dataStaf.jabatanStaf + "\nMerekodkan transaksi...";
 
-            // Hantar data ke backend
             const saveRes = await fetch(GAS_URL, {
               method: "POST",
               body: JSON.stringify({
@@ -113,6 +184,13 @@
 
             const saveData = await saveRes.json();
 
+            if (saveData.result === "BLOCKED") {
+              box.className = "error";
+              box.innerText = "🚫 SEKATAN KESELAMATAN\n\n" + saveData.message;
+              setTimeout(() => { isProcessing = true; }, 3000);
+              return;
+            }
+
             if (saveData.result === "SUCCESS") {
               const isKeluar = (saveData.status === "KELUAR");
               box.className = isKeluar ? "keluar" : "terima";
@@ -121,7 +199,6 @@
                               "\nStaf: " + dataStaf.namaStaf + " (" + dataStaf.jabatanStaf + ")" +
                               "\nMasa: " + saveData.masa;
 
-              // Reset kamera automatik selepas 4 saat
               setTimeout(() => {
                 currentFail = null;
                 box.className = "";
@@ -133,6 +210,7 @@
           } catch (err) {
             box.className = 'error';
             box.innerText = "Ralat: " + err.message;
+            setTimeout(() => { isProcessing = true; }, 2000);
           }
         });
 
