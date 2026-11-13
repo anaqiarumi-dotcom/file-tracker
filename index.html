@@ -3,24 +3,50 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Imbas File Tracker Auto</title>
+  <title>Imbas File Tracker Auto — MP Bentong</title>
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
     * { box-sizing: border-box; }
     body { 
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
       background-color: #f0f4f8; 
-      text-align: center; 
-      padding: 15px; 
       margin: 0; 
+      padding: 0; 
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
     }
+
+    /* Bar Navigasi Atas */
+    .top-nav {
+      background: #1e1b4b;
+      color: #ffffff;
+      padding: 12px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand { font-weight: 700; font-size: 14px; }
+    .btn-login-admin {
+      background: #4f46e5;
+      color: #ffffff;
+      text-decoration: none;
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid #6366f1;
+    }
+
+    .main-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 15px; }
     .card { 
       background: #ffffff; 
       padding: 20px; 
       border-radius: 16px; 
       box-shadow: 0 10px 25px rgba(0,0,0,0.08); 
       max-width: 420px; 
-      margin: 10px auto; 
+      width: 100%;
+      text-align: center;
     }
     h2 { color: #1a202c; margin-top: 0; margin-bottom: 5px; }
     p { color: #718096; font-size: 14px; margin-bottom: 15px; }
@@ -36,6 +62,15 @@
       width: 100%;
       margin-bottom: 15px;
     }
+    .btn-batal {
+      background-color: #e2e8f0;
+      color: #334155;
+      font-size: 13px;
+      padding: 10px;
+      margin-top: 10px;
+      margin-bottom: 0;
+      display: none;
+    }
     #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; }
     #statusBox { 
       margin-top: 15px; 
@@ -46,11 +81,11 @@
       font-weight: bold; 
       white-space: pre-line; 
       line-height: 1.5; 
-      min-height: 80px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
+      min-height: 80px; 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: center; 
+      align-items: center; 
     }
     .step1 { background-color: #ebf8ff !important; color: #2b6cb0 !important; border: 2px solid #90cdf4; }
     .keluar { background-color: #fff5f5 !important; color: #c53030 !important; border: 2px solid #feb2b2; }
@@ -60,27 +95,36 @@
 </head>
 <body>
 
-  <div class="card">
-    <h2>📁 File Tracker Auto</h2>
-    <p>1. Aktifkan NFC & Kamera<br>2. Imbas QR Fail $\rightarrow$ Imbas Kad TNG</p>
+  <div class="top-nav">
+    <div class="brand">MP BENTONG • STESEN IMBASAN</div>
+    <a id="linkAdmin" href="#" class="btn-login-admin">Login Admin</a>
+  </div>
 
-    <!-- Butang Wajib untuk pengesahan kebenaran NFC -->
-    <button id="btnMula" onclick="aktifkanSistem()">🚀 Mula / Aktifkan NFC</button>
+  <div class="main-wrap">
+    <div class="card">
+      <h2>📁 File Tracker Auto</h2>
+      <p>1. Aktifkan NFC & Kamera<br>2. Imbas QR Fail &rarr; Imbas Kad TNG</p>
 
-    <div id="reader" style="display:none;"></div>
-    <div id="statusBox">Tekan butang di atas untuk memberikan kebenaran NFC & Kamera.</div>
+      <button id="btnMula" onclick="aktifkanSistem()">🚀 Mula / Aktifkan NFC</button>
+
+      <div id="reader" style="display:none;"></div>
+      <div id="statusBox">Tekan butang di atas untuk memberikan kebenaran NFC & Kamera.</div>
+      <button id="btnBatal" class="btn-batal" onclick="resetImbasan()">Batal & Imbas Fail Lain</button>
+    </div>
   </div>
 
   <script>
-    // PERHATIAN: GANTIKAN URL DI BAWAH DENGAN URL WEB APP GOOGLE APPS SCRIPT ANDA
-    const GAS_URL = "https://script.google.com/a/macros/mpbentong.gov.my/s/AKfycbw6R1VkJ816SlMH05lYEe4T4j5zrS-93j_AQWJyiOj4nMA-UuCZ3AYv7uZdx6R0snRnCQ/exec";
+    // GANTIKAN DENGAN URL WEB APP GOOGLE APPS SCRIPT ANDA (YANG DITETAPKAN KEPADA 'ANYONE')
+    const GAS_URL = "https://script.google.com/macros/s/GANTIKAN_ID_DEPLOYMENT_ANDA/exec";
+    
+    // Pautan automatik untuk butang Login Admin
+    document.getElementById("linkAdmin").href = GAS_URL;
 
     let currentFail = null;
     let html5QrcodeScanner = null;
     let isProcessing = false;
     let ndefReader = null;
 
-    // FUNGSI UTAMA: Minta kebenaran NFC menerusi klik pengguna
     async function aktifkanSistem() {
       const box = document.getElementById('statusBox');
       
@@ -91,21 +135,16 @@
       }
 
       try {
-        // Minta kebenaran NFC daripada pengguna
         ndefReader = new NDEFReader();
         await ndefReader.scan();
 
-        // Sembunyikan butang Mula, tunjukkan kamera QR
         document.getElementById('btnMula').style.display = 'none';
         document.getElementById('reader').style.display = 'block';
 
         box.className = '';
         box.innerText = "Sistem NFC Aktif! Kamera Sedia.\nSila halakan pada Kod QR Fail...";
 
-        // Mulakan Pengimbas QR Kamera
         startQrScanner();
-
-        // Dengar imbasan NFC di latar belakang
         dengarNFC();
 
       } catch (err) {
@@ -116,8 +155,19 @@
 
     function startQrScanner() {
       isProcessing = false;
+      document.getElementById('btnBatal').style.display = 'none';
+      document.getElementById('reader').style.display = 'block';
       html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
       html5QrcodeScanner.render(onScanSuccess);
+    }
+
+    function resetImbasan() {
+      currentFail = null;
+      isProcessing = false;
+      const box = document.getElementById('statusBox');
+      box.className = "";
+      box.innerText = "Kamera Sedia. Sila halakan pada Kod QR Fail...";
+      startQrScanner();
     }
 
     async function onScanSuccess(decodedText) {
@@ -132,25 +182,34 @@
         const res = await fetch(GAS_URL + "?action=getFail&kodFail=" + encodeURIComponent(decodedText));
         const data = await res.json();
 
-        if (data.namaFail) {
+        if (data.wujud) {
+          if (data.tutup) {
+            box.className = "error";
+            box.innerText = "🚫 FAIL TELAH DITUTUP!\nFail " + data.kodFail + " tidak lagi aktif.";
+            setTimeout(() => { isProcessing = false; }, 2500);
+            return;
+          }
+
           currentFail = { 
-            kod: decodedText, 
+            kod: data.kodFail, 
             nama: data.namaFail,
             jbFail: data.jabatanFail
           };
           html5QrcodeScanner.clear();
+          document.getElementById('reader').style.display = 'none';
+          document.getElementById('btnBatal').style.display = 'block';
           
           box.className = "step1";
-          box.innerText = "📌 FAIL DIKESAN:\n" + data.namaFail + " (" + decodedText + ")\n" + data.jabatanFail + "\n\n[LANGKAH 2]: Sentuhkan Kad TNG Staf di belakang telefon sekarang...";
-          isProcessing = false; // Buka kunci untuk sedia terima NFC
+          box.innerText = "📌 FAIL DIKESAN:\n" + data.namaFail + " (" + data.kodFail + ")\n" + data.jabatanFail + "\n\n[LANGKAH 2]: Sentuhkan Kad TNG Staf di belakang telefon sekarang...";
+          isProcessing = false;
         } else {
           box.className = "error";
           box.innerText = "⚠️ Kod Fail " + decodedText + " tidak didaftarkan!";
-          isProcessing = false;
+          setTimeout(() => { isProcessing = false; }, 2000);
         }
       } catch (err) {
         box.className = "error";
-        box.innerText = "Ralat: " + err.message;
+        box.innerText = "Ralat Sambungan: " + err.message;
         isProcessing = false;
       }
     }
@@ -162,7 +221,7 @@
         const box = document.getElementById('statusBox');
 
         if (!serialNumber || !currentFail || isProcessing) return;
-        isProcessing = true; // Kunci supaya tiada double scan
+        isProcessing = true;
 
         box.innerText = "Kad TNG Dikesan!\nSemak identiti staf...";
 
@@ -170,7 +229,7 @@
           const resStaf = await fetch(GAS_URL + "?action=getStaf&uid=" + encodeURIComponent(serialNumber));
           const dataStaf = await resStaf.json();
 
-          if (!dataStaf.namaStaf) {
+          if (!dataStaf.wujud) {
             box.className = 'error';
             box.innerText = "⚠️ Kad TNG (UID: " + serialNumber + ") belum didaftarkan!";
             setTimeout(() => { isProcessing = false; }, 2000);
@@ -179,14 +238,13 @@
 
           box.innerText = "Staf: " + dataStaf.namaStaf + "\n" + dataStaf.jabatanStaf + "\nMerekodkan transaksi...";
 
+          // Gunakan text/plain supaya pelayar tidak menghantar CORS Preflight OPTIONS yang ditolak Apps Script
           const saveRes = await fetch(GAS_URL, {
             method: "POST",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
             body: JSON.stringify({
               kodFail: currentFail.kod,
-              namaFail: currentFail.nama,
-              jabatanFail: currentFail.jbFail,
-              namaStaf: dataStaf.namaStaf,
-              jabatanStaf: dataStaf.jabatanStaf
+              uidNfc: serialNumber
             })
           });
 
@@ -200,18 +258,16 @@
           }
 
           if (saveData.result === "SUCCESS") {
+            document.getElementById('btnBatal').style.display = 'none';
             const isKeluar = (saveData.status === "KELUAR");
             box.className = isKeluar ? "keluar" : "terima";
             box.innerText = (isKeluar ? "🔴 FAIL KELUAR (PINJAM)" : "🟢 FAIL TERIMA (PULANG)") +
                             "\n\nFail: " + currentFail.nama +
-                            "\nStaf: " + dataStaf.namaStaf + " (" + dataStaf.jabatanStaf + ")" +
+                            "\nStaf: " + saveData.namaStaf + " (" + saveData.jabatanStaf + ")" +
                             "\nMasa: " + saveData.masa;
 
             setTimeout(() => {
-              currentFail = null;
-              box.className = "";
-              box.innerText = "Kamera Sedia. Sila halakan pada Kod QR Fail...";
-              startQrScanner();
+              resetImbasan();
             }, 4000);
           }
 
