@@ -19,27 +19,28 @@
     }
     .card { 
       background: #ffffff; 
-      padding: 24px; 
+      padding: 22px; 
       border-radius: 16px; 
       box-shadow: 0 10px 25px rgba(0,0,0,0.08); 
-      max-width: 420px; 
+      max-width: 430px; 
       width: 100%;
       text-align: center;
     }
     h2 { color: #1a202c; margin-top: 0; margin-bottom: 6px; font-size: 20px; }
-    p { color: #718096; font-size: 13px; margin-bottom: 18px; line-height: 1.5; }
+    p { color: #64748b; font-size: 13px; margin-bottom: 14px; line-height: 1.5; }
     button {
       background-color: #3182ce;
       color: white;
       border: none;
-      padding: 14px 20px;
-      font-size: 15px;
+      padding: 12px 16px;
+      font-size: 14px;
       font-weight: bold;
       border-radius: 10px;
       cursor: pointer;
       width: 100%;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
     }
+    button:disabled { background-color: #94a3b8; cursor: not-allowed; }
     .btn-batal {
       background-color: #e2e8f0;
       color: #334155;
@@ -49,17 +50,17 @@
       margin-bottom: 0;
       display: none;
     }
-    #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-top: 10px; }
+    #reader { width: 100%; border-radius: 12px; overflow: hidden; margin-top: 8px; }
     #statusBox { 
-      margin-top: 15px; 
-      padding: 18px; 
+      margin-top: 14px; 
+      padding: 16px; 
       border-radius: 12px; 
       background: #edf2f7; 
       font-size: 14px; 
       font-weight: 600; 
       white-space: pre-line; 
       line-height: 1.5; 
-      min-height: 85px; 
+      min-height: 90px; 
       display: flex; 
       flex-direction: column; 
       justify-content: center; 
@@ -69,63 +70,122 @@
     .keluar { background-color: #fff5f5 !important; color: #c53030 !important; border: 2px solid #feb2b2; }
     .terima { background-color: #f0fff4 !important; color: #276749 !important; border: 2px solid #9ae6b4; }
     .error { background-color: #fffaf0 !important; color: #c05621 !important; border: 2px solid #fbd38d; }
+    .loading { background-color: #f8fafc !important; color: #0f172a !important; border: 2px dashed #64748b; }
+
+    /* Kotak Sandaran Input Manual (iPhone / Tiada Kad NFC) */
+    #kotakManual {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      text-align: left;
+    }
+    #kotakManual label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .manual-row { display: flex; gap: 6px; }
+    .manual-row input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 14px;
+      text-transform: uppercase;
+    }
+    .manual-row button {
+      width: auto;
+      margin-bottom: 0;
+      padding: 10px 14px;
+      background-color: #0f172a;
+    }
   </style>
 </head>
 <body>
 
   <div class="card">
     <h2>📁 Stesen Imbasan Fail</h2>
-    <p>1. Tekan butang di bawah untuk aktifkan NFC & Kamera<br>2. Imbas QR Fail &rarr; Sentuh Kad TNG / NFC Staf</p>
+    <p>1. Imbas Kod QR Fail &rarr; 2. Tap Kad NFC (atau masukkan No. Pekerja / IC)</p>
 
-    <button id="btnMula" onclick="aktifkanSistem()">🚀 Mula / Aktifkan NFC & Kamera</button>
+    <button id="btnNfc" onclick="aktifkanNfc()" style="display:none;">📶 Klik untuk Aktifkan NFC</button>
 
-    <div id="reader" style="display:none;"></div>
-    <div id="statusBox">Sedia untuk memulakan imbasan.</div>
+    <div id="reader"></div>
+    <div id="statusBox">Membuka kamera untuk imbasan Kod QR Fail...</div>
+
+    <!-- Pilihan Sandaran Jika Pengguna Tiada Kad NFC / Menggunakan iPhone -->
+    <div id="kotakManual">
+      <label>Sandaran (Tiada Kad NFC / Pengguna iPhone):</label>
+      <div class="manual-row">
+        <input type="text" id="inputIdManual" placeholder="No. Pekerja atau No. IC" onkeydown="if(event.key==='Enter') hantarIdManual()">
+        <button id="btnHantarManual" onclick="hantarIdManual()">Sahkan</button>
+      </div>
+    </div>
+
     <button id="btnBatal" class="btn-batal" onclick="resetImbasan()">Batal & Imbas Fail Lain</button>
   </div>
 
   <script>
-    // GANTIKAN DENGAN URL WEB APP APPS SCRIPT YANG DITETAPKAN KEPADA 'ANYONE'
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbzn87VCShVnNDwuVgsmucE1SJlgLevo3D6pQQpBQGJAJWNcUdTd9HdAb-nMefgUKJedJw/exec";
+    // GANTIKAN DENGAN URL WEB APP APPS SCRIPT ANDA (YANG DITETAPKAN KEPADA 'ANYONE')
+    const GAS_URL = "https://script.google.com/macros/s/GANTIKAN_ID_DEPLOYMENT_ANDA/exec";
 
     let currentFail = null;
     let html5QrcodeScanner = null;
     let isProcessing = false;
     let ndefReader = null;
+    let nfcAktif = false;
 
-    async function aktifkanSistem() {
+    window.onload = async function() {
+      startQrScanner();
+      await aktifkanNfc();
+    };
+
+    async function aktifkanNfc() {
       const box = document.getElementById('statusBox');
-      
+      const btnNfc = document.getElementById('btnNfc');
+
       if (!('NDEFReader' in window)) {
-        box.className = 'error';
-        box.innerText = "Pelayar ini tidak menyokong Web NFC.\nSila guna Google Chrome pada telefon Android.";
+        // Peranti iPhone atau pelayar tanpa Web NFC akan gunakan input sandaran selepas QR diimbas
+        if (!currentFail) {
+          box.className = '';
+          box.innerText = "Kamera Sedia.\nSila imbas Kod QR Fail (Input No. Pekerja/IC tersedia untuk peranti tanpa NFC).";
+        }
         return;
       }
+
+      if (nfcAktif) return;
 
       try {
         ndefReader = new NDEFReader();
         await ndefReader.scan();
-
-        document.getElementById('btnMula').style.display = 'none';
-        document.getElementById('reader').style.display = 'block';
-
-        box.className = '';
-        box.innerText = "Sistem NFC Aktif! Kamera Sedia.\nSila halakan pada Kod QR Fail...";
-
-        startQrScanner();
+        nfcAktif = true;
+        btnNfc.style.display = 'none';
         dengarNFC();
-
+        if (!currentFail) {
+          box.className = '';
+          box.innerText = "Kamera & NFC Sedia.\nSila halakan kamera pada Kod QR Fail...";
+        }
       } catch (err) {
-        box.className = 'error';
-        box.innerText = "Ralat NFC: " + err.message + "\n\nPastikan NFC dihidupkan dan kebenaran dibenarkan pada tetapan Chrome.";
+        btnNfc.style.display = 'block';
+        if (!currentFail) {
+          box.className = 'error';
+          box.innerText = "Kamera sedia. Tekan butang biru untuk NFC, atau terus imbas QR Fail.";
+        }
       }
     }
 
     function startQrScanner() {
       isProcessing = false;
       document.getElementById('btnBatal').style.display = 'none';
+      document.getElementById('kotakManual').style.display = 'none';
+      document.getElementById('inputIdManual').value = '';
       document.getElementById('reader').style.display = 'block';
-      html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+      html5QrcodeScanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 240 });
       html5QrcodeScanner.render(onScanSuccess);
     }
 
@@ -142,9 +202,13 @@
       if (isProcessing) return;
       isProcessing = true;
 
+      if (!nfcAktif && ('NDEFReader' in window)) {
+        await aktifkanNfc();
+      }
+
       const box = document.getElementById('statusBox');
-      box.className = "";
-      box.innerText = "Kod QR Dikesan: " + decodedText + "\nMenyemak maklumat fail...";
+      box.className = "loading";
+      box.innerText = "⏳ Kod QR Dikesan: " + decodedText + "\nMenyemak maklumat fail...";
 
       try {
         const res = await fetch(GAS_URL + "?action=getFail&kodFail=" + encodeURIComponent(decodedText));
@@ -158,17 +222,26 @@
             return;
           }
 
-          currentFail = { 
-            kod: data.kodFail, 
-            nama: data.namaFail,
-            jbFail: data.jabatanFail
-          };
+          currentFail = data;
           html5QrcodeScanner.clear();
           document.getElementById('reader').style.display = 'none';
           document.getElementById('btnBatal').style.display = 'block';
-          
+          document.getElementById('kotakManual').style.display = 'block';
+          document.getElementById('btnHantarManual').disabled = false;
+
+          let panduanPeringkat = "";
+          if (data.statusSemasa === "AKTIF") {
+            panduanPeringkat = "[PERINGKAT 1 — PENGELUAR]\nTap Kad NFC (atau masukkan ID) AHLI JABATAN PEMILIK fail.";
+          } else if (data.statusSemasa === "MENUNGGU PENERIMA" || data.statusSemasa === "KELUAR") {
+            panduanPeringkat = "[PERINGKAT 2 — PENERIMA]\nTap Kad NFC (atau masukkan ID) JABATAN PEMINJAM.\n(Ahli jabatan pemilik boleh tap untuk batal pengeluaran)";
+          } else if (data.statusSemasa === "DITERIMA") {
+            panduanPeringkat = "[PERINGKAT 3 — PEMULANGAN / PINDAH MILIK]\n• Ahli Jabatan Pemilik: Tap untuk sahkan PEMULANGAN.\n• Jabatan Luar Lain: Tap untuk PINDAH MILIK PENERIMA.";
+          }
+
           box.className = "step1";
-          box.innerText = "📌 FAIL DIKESAN:\n" + data.namaFail + " (" + data.kodFail + ")\n" + data.jabatanFail + "\n\n[LANGKAH 2]: Sentuhkan Kad TNG / NFC Staf sekarang...";
+          box.innerText = "📌 FAIL: " + data.namaFail + " (" + data.kodFail + ")\n" +
+                          "Jabatan Pemilik: " + data.jabatanFail + " | Status: " + data.statusSemasa +
+                          "\n\n" + panduanPeringkat;
           isProcessing = false;
         } else {
           box.className = "error";
@@ -186,64 +259,74 @@
       if (!ndefReader) return;
 
       ndefReader.addEventListener("reading", async ({ serialNumber }) => {
-        const box = document.getElementById('statusBox');
-
+        // Kunci Anti Double-Tap: Abaikan sebarang imbasan semasa proses sedang berjalan
         if (!serialNumber || !currentFail || isProcessing) return;
-        isProcessing = true;
-
-        box.innerText = "Kad TNG Dikesan!\nSemak identiti staf...";
-
-        try {
-          const resStaf = await fetch(GAS_URL + "?action=getStaf&uid=" + encodeURIComponent(serialNumber));
-          const dataStaf = await resStaf.json();
-
-          if (!dataStaf.wujud) {
-            box.className = 'error';
-            box.innerText = "⚠️ Kad TNG (UID: " + serialNumber + ") belum didaftarkan!";
-            setTimeout(() => { isProcessing = false; }, 2000);
-            return;
-          }
-
-          box.innerText = "Staf: " + dataStaf.namaStaf + "\n" + dataStaf.jabatanStaf + "\nMerekodkan transaksi...";
-
-          const saveRes = await fetch(GAS_URL, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({
-              kodFail: currentFail.kod,
-              uidNfc: serialNumber
-            })
-          });
-
-          const saveData = await saveRes.json();
-
-          if (saveData.result === "BLOCKED") {
-            box.className = "error";
-            box.innerText = "🚫 SEKATAN KESELAMATAN\n\n" + saveData.message;
-            setTimeout(() => { isProcessing = false; }, 3000);
-            return;
-          }
-
-          if (saveData.result === "SUCCESS") {
-            document.getElementById('btnBatal').style.display = 'none';
-            const isKeluar = (saveData.status === "KELUAR");
-            box.className = isKeluar ? "keluar" : "terima";
-            box.innerText = (isKeluar ? "🔴 FAIL KELUAR (PINJAM)" : "🟢 FAIL TERIMA (PULANG)") +
-                            "\n\nFail: " + currentFail.nama +
-                            "\nStaf: " + saveData.namaStaf + " (" + saveData.jabatanStaf + ")" +
-                            "\nMasa: " + saveData.masa;
-
-            setTimeout(() => {
-              resetImbasan();
-            }, 4000);
-          }
-
-        } catch (err) {
-          box.className = 'error';
-          box.innerText = "Ralat: " + err.message;
-          setTimeout(() => { isProcessing = false; }, 2000);
-        }
+        await hantarTransaksiKePelayan(serialNumber, "");
       });
+    }
+
+    async function hantarIdManual() {
+      if (!currentFail || isProcessing) return;
+      const nilaiId = document.getElementById('inputIdManual').value.trim();
+      if (!nilaiId) {
+        alert("Sila masukkan No. Pekerja atau No. K/P anda.");
+        return;
+      }
+      await hantarTransaksiKePelayan("", nilaiId);
+    }
+
+    async function hantarTransaksiKePelayan(uidNfc, idManual) {
+      // Kunci penuh butang & pengesan NFC sehingga jawapan diterima
+      isProcessing = true;
+      const btnManual = document.getElementById('btnHantarManual');
+      const box = document.getElementById('statusBox');
+      btnManual.disabled = true;
+
+      box.className = "loading";
+      box.innerText = "⏳ Sedang menyimpan rekod ke Google Sheets...\nSila tunggu sebentar (jangan tap semula)...";
+
+      try {
+        const saveRes = await fetch(GAS_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({
+            kodFail: currentFail.kodFail,
+            uidNfc: uidNfc,
+            idManual: idManual
+          })
+        });
+
+        const saveData = await saveRes.json();
+
+        if (saveData.result === "ERROR") {
+          box.className = "error";
+          box.innerText = "🚫 " + saveData.message;
+          btnManual.disabled = false;
+          setTimeout(() => { isProcessing = false; }, 2000);
+          return;
+        }
+
+        if (saveData.result === "SUCCESS") {
+          document.getElementById('btnBatal').style.display = 'none';
+          document.getElementById('kotakManual').style.display = 'none';
+          box.className = saveData.kodWarna || "terima";
+          box.innerText = saveData.tajuk +
+                          "\n\nFail: " + currentFail.namaFail + " (" + currentFail.kodFail + ")" +
+                          "\nStaf: " + saveData.namaStaf + " (" + saveData.jabatanStaf + ")" +
+                          "\nKabinet: " + saveData.kabinet + " | Masa: " + saveData.masa +
+                          "\n\n" + saveData.nota;
+
+          setTimeout(() => {
+            resetImbasan();
+          }, 4200);
+        }
+
+      } catch (err) {
+        box.className = 'error';
+        box.innerText = "Ralat Sambungan: " + err.message;
+        btnManual.disabled = false;
+        setTimeout(() => { isProcessing = false; }, 2000);
+      }
     }
   </script>
 </body>
